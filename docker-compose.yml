@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: stravy_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-stravy}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-stravy}
+      POSTGRES_DB: ${DATABASE_NAME:-stravy}
+    ports:
+      - "5432:5432"
+    volumes:
+      - stravy_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-stravy} -d ${DATABASE_NAME:-stravy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: stravy_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${DATABASE_USER:-stravy}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-stravy}
+      DATABASE_NAME: ${DATABASE_NAME:-stravy}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret_change_me}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret_change_me}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-2592000}
+      UPLOAD_DIR: /app/uploads
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    volumes:
+      - stravy_uploads:/app/uploads
+
+volumes:
+  stravy_pgdata:
+  stravy_uploads:
