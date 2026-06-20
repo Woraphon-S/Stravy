@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 export type AppStackParamList = {
   Tabs: undefined;
   ActivityDetail: { id: string };
+  Settings: undefined;
 };
 
 export type MainTabParamList = {
@@ -19,6 +20,8 @@ export type AuthStackParamList = {
 };
 
 export type ActivityDetailProps = NativeStackScreenProps<AppStackParamList, 'ActivityDetail'>;
+
+export type SettingsProps = NativeStackScreenProps<AppStackParamList, 'Settings'>;
 
 export type FeedTabProps = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Feed'>,

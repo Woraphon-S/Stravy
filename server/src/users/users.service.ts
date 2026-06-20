@@ -1,10 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { StorageService } from '../storage/storage.service';
 import { UpdateProfileFields, UsersRepository } from './users.repository';
-import { PublicUser, SelfUser, UserRow } from './user.types';
+import { PublicUser, SelfUser, UploadedFileLike, UserRow } from './user.types';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly users: UsersRepository) {}
+  constructor(
+    private readonly users: UsersRepository,
+    private readonly storage: StorageService,
+  ) {}
 
   toSelf(row: UserRow): SelfUser {
     return {
@@ -43,6 +47,14 @@ export class UsersService {
 
   async updateProfile(id: string, fields: UpdateProfileFields): Promise<SelfUser> {
     const row = await this.users.updateProfile(id, fields);
+    if (!row) throw new NotFoundException('User not found');
+    return this.toSelf(row);
+  }
+
+  async updatePhoto(id: string, file: UploadedFileLike): Promise<SelfUser> {
+    if (!file || !file.buffer) throw new BadRequestException('No file uploaded');
+    const photoUrl = await this.storage.save(file.buffer, file.originalname);
+    const row = await this.users.updateProfile(id, { photoUrl });
     if (!row) throw new NotFoundException('User not found');
     return this.toSelf(row);
   }

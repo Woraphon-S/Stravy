@@ -4,6 +4,7 @@ import { UsersService } from './users.service';
 describe('UsersService', () => {
   let service: UsersService;
   let repo: any;
+  let storage: any;
 
   const row = {
     id: 'u1',
@@ -21,7 +22,8 @@ describe('UsersService', () => {
 
   beforeEach(() => {
     repo = { findById: jest.fn(), updateProfile: jest.fn(), search: jest.fn() };
-    service = new UsersService(repo);
+    storage = { save: jest.fn() };
+    service = new UsersService(repo, storage);
   });
 
   it('maps numeric strings to numbers and omits the password hash', () => {

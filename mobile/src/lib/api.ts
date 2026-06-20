@@ -76,14 +76,16 @@ export interface RequestOptions {
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, auth = true, raw = false } = options;
 
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+
   const exec = (): Promise<Response> => {
     const headers: Record<string, string> = {};
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
     if (auth && tokens) headers['Authorization'] = `Bearer ${tokens.accessToken}`;
     return fetch(`${API_BASE}${path}`, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
     });
   };
 

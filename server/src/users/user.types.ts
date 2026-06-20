@@ -30,3 +30,8 @@ export interface PublicUser {
   photoUrl: string | null;
   createdAt: Date;
 }
+
+export interface UploadedFileLike {
+  buffer: Buffer;
+  originalname: string;
+}

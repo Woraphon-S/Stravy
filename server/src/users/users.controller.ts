@@ -1,8 +1,21 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthUser, CurrentUser } from '../common/current-user.decorator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { PublicUser, SelfUser } from './user.types';
+import { PublicUser, SelfUser, UploadedFileLike } from './user.types';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -18,6 +31,15 @@ export class UsersController {
   @Patch('me')
   updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto): Promise<SelfUser> {
     return this.users.updateProfile(user.id, dto);
+  }
+
+  @Post('me/photo')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadPhoto(
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: UploadedFileLike,
+  ): Promise<SelfUser> {
+    return this.users.updatePhoto(user.id, file);
   }
 
   @Get('search')

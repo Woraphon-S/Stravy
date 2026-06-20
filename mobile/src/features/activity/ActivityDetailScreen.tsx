@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
-import { ElevationChart } from '../../components/ElevationChart';
+import { LineChart } from '../../components/LineChart';
 import { ErrorText, Loading } from '../../components/Feedback';
 import { RoutePreview } from '../../components/RoutePreview';
 import { Screen } from '../../components/Screen';
@@ -24,12 +24,12 @@ import {
   formatCalories,
   formatDistance,
   formatDuration,
-  formatElevation,
   formatPace,
   formatRelativeTime,
   formatSpeed,
   isPaceType,
 } from '../../lib/format';
+import { haversineMeters } from '../../lib/geo';
 import { Activity, Comment, TrackPoint } from '../../lib/types';
 import { ActivityDetailProps } from '../../navigation/types';
 import { colors, radius, spacing, typography } from '../../theme';
@@ -148,6 +148,14 @@ export function ActivityDetailScreen({ route, navigation }: ActivityDetailProps)
     );
   }
 
+  const speedSeries = points.map((point, i) => {
+    if (i === 0) return null;
+    const prev = points[i - 1];
+    const dt = (new Date(point.recordedAt).getTime() - new Date(prev.recordedAt).getTime()) / 1000;
+    if (dt <= 0) return null;
+    return haversineMeters(prev.lat, prev.lng, point.lat, point.lng) / dt;
+  });
+
   const isOwner = user?.id === activity.userId;
   const speedLabel = isPaceType(activity.type) ? t('activity.pace') : t('activity.avgSpeed');
   const speedValue = isPaceType(activity.type)
@@ -179,13 +187,18 @@ export function ActivityDetailScreen({ route, navigation }: ActivityDetailProps)
           <View style={styles.grid}>
             <Metric label={t('activity.distance')} value={formatDistance(activity.distanceM, units)} />
             <Metric label={t('activity.movingTime')} value={formatDuration(activity.movingSeconds)} />
+            <Metric label={t('activity.elapsedTime')} value={formatDuration(activity.elapsedSeconds)} />
             <Metric label={speedLabel} value={speedValue} />
-            <Metric label={t('activity.elevation')} value={formatElevation(activity.elevationGainM, units)} />
-            <Metric label={t('activity.calories')} value={formatCalories(activity.calories)} />
             <Metric label={t('activity.maxSpeed')} value={formatSpeed(activity.maxSpeedMps, units)} />
+            <Metric label={t('activity.calories')} value={formatCalories(activity.calories)} />
           </View>
 
-          <ElevationChart values={points.map((p) => p.elevationM)} />
+          <LineChart
+            values={speedSeries}
+            label={t('activity.speed')}
+            emptyLabel={t('activity.noData')}
+            formatValue={(value) => formatSpeed(value, units)}
+          />
 
           <View style={styles.actions}>
             <Pressable style={styles.action} onPress={toggleKudos}>

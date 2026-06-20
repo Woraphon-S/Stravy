@@ -1,145 +1,298 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
+import React, { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityCard } from '../../components/ActivityCard';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
-import { Card } from '../../components/Card';
-import { ErrorText } from '../../components/Feedback';
+import { EmptyState, ErrorText, Loading } from '../../components/Feedback';
 import { Screen } from '../../components/Screen';
-import { SegmentedControl } from '../../components/SegmentedControl';
+import { StatTile } from '../../components/StatTile';
 import { TextField } from '../../components/TextField';
-import { Language, useI18n } from '../../i18n/I18nContext';
-import { TranslationKey } from '../../i18n/translations';
-import { IconLogout } from '../../icons';
+import { useI18n } from '../../i18n/I18nContext';
+import { IconCamera, IconChevronRight, IconEdit, IconRun, IconSettings } from '../../icons';
 import { ApiError } from '../../lib/api';
-import { usersApi } from '../../lib/endpoints';
-import { Privacy, Units } from '../../lib/types';
-import { colors, spacing, typography } from '../../theme';
+import { activitiesApi, usersApi } from '../../lib/endpoints';
+import { formatDistance, formatDuration } from '../../lib/format';
+import { Activity } from '../../lib/types';
+import { ProfileTabProps } from '../../navigation/types';
+import { colors, radius, spacing, typography } from '../../theme';
 import { useAuth } from '../auth/AuthContext';
 
-const UNIT_VALUES: Units[] = ['metric', 'imperial'];
-const PRIVACY_VALUES: Privacy[] = ['public', 'followers', 'private'];
-const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
-  { value: 'en', label: 'English' },
-  { value: 'th', label: 'ไทย' },
-];
+export function ProfileScreen({ navigation }: ProfileTabProps) {
+  const { user, setUser } = useAuth();
+  const { t } = useI18n();
+  const units = user?.units ?? 'metric';
 
-export function ProfileScreen() {
-  const { user, signOut, setUser } = useAuth();
-  const { t, language, setLanguage } = useI18n();
-  const [units, setUnits] = useState<Units>(user?.units ?? 'metric');
-  const [privacy, setPrivacy] = useState<Privacy>(user?.defaultPrivacy ?? 'public');
-  const [weight, setWeight] = useState(user?.weightKg != null ? String(user.weightKg) : '');
-  const [saving, setSaving] = useState(false);
+  const [items, setItems] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [name, setName] = useState(user?.displayName ?? '');
+  const [savingName, setSavingName] = useState(false);
+  const initialized = useRef(false);
+
+  const load = useCallback(async () => {
+    if (!user) return;
+    try {
+      setError(null);
+      const page = await activitiesApi.list({ userId: user.id, limit: 50 });
+      setItems(page.items);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t('profile.errorLoad'));
+    } finally {
+      setLoading(false);
+    }
+  }, [user, t]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!initialized.current) {
+        initialized.current = true;
+        load();
+      }
+    }, [load]),
+  );
 
   if (!user) return null;
 
-  const save = async () => {
-    setSaving(true);
+  const pickPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setError(t('profile.permissionPhoto'));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setUploading(true);
     setError(null);
-    setSaved(false);
     try {
-      const body: Partial<{ units: Units; defaultPrivacy: Privacy; weightKg: number }> = {
-        units,
-        defaultPrivacy: privacy,
-      };
-      const parsedWeight = parseFloat(weight);
-      if (!Number.isNaN(parsedWeight)) body.weightKg = parsedWeight;
-      const updated = await usersApi.updateMe(body);
+      const updated = await usersApi.uploadPhoto({
+        uri: asset.uri,
+        name: asset.fileName ?? 'photo.jpg',
+        type: asset.mimeType ?? 'image/jpeg',
+      });
       setUser(updated);
-      setSaved(true);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : t('profile.errorSave'));
+      setError(e instanceof ApiError ? e.message : t('profile.errorPhoto'));
     } finally {
-      setSaving(false);
+      setUploading(false);
     }
   };
 
-  const unitOptions = UNIT_VALUES.map((value) => ({
-    value,
-    label: t(`profile.${value}` as TranslationKey),
-  }));
-  const privacyOptions = PRIVACY_VALUES.map((value) => ({
-    value,
-    label: t(`profile.${value}` as TranslationKey),
-  }));
+  const startEditName = () => {
+    setName(user.displayName);
+    setEditingName(true);
+  };
+
+  const saveName = async () => {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === user.displayName) {
+      setEditingName(false);
+      return;
+    }
+    setSavingName(true);
+    setError(null);
+    try {
+      const updated = await usersApi.updateMe({ displayName: trimmed });
+      setUser(updated);
+      setEditingName(false);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t('profile.errorName'));
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const totalDistanceM = items.reduce((sum, activity) => sum + activity.distanceM, 0);
+  const totalTimeS = items.reduce((sum, activity) => sum + activity.movingSeconds, 0);
+
+  const header = (
+    <View style={styles.header}>
+      <View style={styles.identity}>
+        <Pressable style={styles.avatarWrap} onPress={pickPhoto}>
+          <Avatar name={user.displayName} photoUrl={user.photoUrl} size={96} />
+          <View style={styles.cameraBadge}>
+            {uploading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <IconCamera size={16} color="#FFFFFF" />
+            )}
+          </View>
+        </Pressable>
+
+        {editingName ? (
+          <View style={styles.nameEdit}>
+            <TextField
+              value={name}
+              onChangeText={setName}
+              placeholder={t('profile.namePlaceholder')}
+              autoCapitalize="words"
+            />
+            <View style={styles.nameEditButtons}>
+              <Button
+                label={t('common.cancel')}
+                variant="secondary"
+                onPress={() => setEditingName(false)}
+                style={styles.nameEditButton}
+              />
+              <Button
+                label={t('profile.saveName')}
+                onPress={saveName}
+                loading={savingName}
+                style={styles.nameEditButton}
+              />
+            </View>
+          </View>
+        ) : (
+          <Pressable style={styles.nameRow} onPress={startEditName}>
+            <Text style={[typography.h1, styles.name]}>{user.displayName}</Text>
+            <IconEdit size={18} color={colors.textMuted} />
+          </Pressable>
+        )}
+
+        <Text style={typography.caption}>{user.email}</Text>
+      </View>
+
+      <View style={styles.statsBox}>
+        <StatTile label={t('profile.activities')} value={String(items.length)} />
+        <StatTile label={t('profile.totalDistance')} value={formatDistance(totalDistanceM, units)} />
+        <StatTile label={t('profile.totalTime')} value={formatDuration(totalTimeS)} />
+      </View>
+
+      <Pressable style={styles.settingsRow} onPress={() => navigation.navigate('Settings')}>
+        <IconSettings size={20} color={colors.text} />
+        <Text style={[typography.title, styles.settingsLabel]}>{t('profile.settings')}</Text>
+        <IconChevronRight size={20} color={colors.textMuted} />
+      </Pressable>
+
+      {error ? (
+        <View style={styles.errorWrap}>
+          <ErrorText message={error} />
+        </View>
+      ) : null}
+
+      <Text style={[typography.label, styles.sectionLabel]}>{t('profile.yourActivities')}</Text>
+    </View>
+  );
 
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Avatar name={user.displayName} photoUrl={user.photoUrl} size={72} />
-          <Text style={[typography.h1, styles.name]}>{user.displayName}</Text>
-          <Text style={typography.caption}>{user.email}</Text>
-        </View>
-
-        <Card style={styles.card}>
-          <Text style={[typography.label, styles.sectionLabel]}>{t('profile.language')}</Text>
-          <SegmentedControl options={LANGUAGE_OPTIONS} value={language} onChange={setLanguage} />
-
-          <Text style={[typography.label, styles.sectionLabel]}>{t('profile.units')}</Text>
-          <SegmentedControl options={unitOptions} value={units} onChange={setUnits} />
-
-          <Text style={[typography.label, styles.sectionLabel]}>{t('profile.privacy')}</Text>
-          <SegmentedControl options={privacyOptions} value={privacy} onChange={setPrivacy} />
-
-          <View style={styles.weight}>
-            <TextField
-              label={t('profile.weight')}
-              value={weight}
-              onChangeText={setWeight}
-              keyboardType="numeric"
-              placeholder="70"
+    <Screen padded={false}>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={header}
+        renderItem={({ item }) => (
+          <ActivityCard
+            activity={item}
+            units={units}
+            hideAuthor
+            onPress={() => navigation.navigate('ActivityDetail', { id: item.id })}
+          />
+        )}
+        ListEmptyComponent={
+          loading ? (
+            <Loading />
+          ) : (
+            <EmptyState
+              title={t('profile.noActivities')}
+              icon={<IconRun size={40} color={colors.textFaint} />}
             />
-          </View>
-
-          {error ? <ErrorText message={error} /> : null}
-          {saved ? <Text style={[typography.caption, styles.saved]}>{t('common.saved')}</Text> : null}
-
-          <Button label={t('common.save')} onPress={save} loading={saving} />
-        </Card>
-
-        <Button
-          label={t('profile.logout')}
-          variant="ghost"
-          onPress={signOut}
-          icon={<IconLogout size={18} color={colors.textMuted} />}
-          style={styles.logout}
-        />
-      </ScrollView>
+          )
+        }
+        showsVerticalScrollIndicator={false}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingVertical: spacing.lg,
+  list: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+    flexGrow: 1,
   },
   header: {
+    marginBottom: spacing.sm,
+  },
+  identity: {
     alignItems: 'center',
     marginBottom: spacing.xl,
   },
-  name: {
-    marginTop: spacing.md,
+  avatarWrap: {
+    width: 96,
+    height: 96,
+    marginBottom: spacing.md,
   },
-  card: {
+  cameraBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  name: {
+    marginRight: spacing.sm,
+  },
+  nameEdit: {
+    width: '100%',
+  },
+  nameEditButtons: {
+    flexDirection: 'row',
+  },
+  nameEditButton: {
+    flex: 1,
+    marginHorizontal: spacing.xs,
+  },
+  statsBox: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
     marginBottom: spacing.lg,
   },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.lg,
+  },
+  settingsLabel: {
+    flex: 1,
+    marginLeft: spacing.md,
+  },
+  errorWrap: {
+    marginBottom: spacing.md,
+  },
   sectionLabel: {
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-  },
-  weight: {
-    marginTop: spacing.lg,
-  },
-  saved: {
-    color: colors.success,
-    marginBottom: spacing.sm,
-  },
-  logout: {
-    marginTop: spacing.sm,
+    marginBottom: spacing.md,
   },
 });

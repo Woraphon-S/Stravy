@@ -10,6 +10,7 @@ import { RegisterScreen } from '../features/auth/RegisterScreen';
 import { FeedScreen } from '../features/feed/FeedScreen';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { RecordScreen } from '../features/record/RecordScreen';
+import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { useI18n } from '../i18n/I18nContext';
 import { IconHome, IconPlus, IconUser } from '../icons';
 import { colors } from '../theme';
@@ -78,6 +79,11 @@ function AppNavigator() {
         name="ActivityDetail"
         component={ActivityDetailScreen}
         options={{ title: t('activity.headerTitle') }}
+      />
+      <AppStack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ title: t('settings.title') }}
       />
     </AppStack.Navigator>
   );

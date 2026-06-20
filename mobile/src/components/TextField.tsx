@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   KeyboardTypeOptions,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { IconEye, IconEyeOff } from '../icons';
 import { colors, radius, spacing, typography } from '../theme';
 
 interface Props {
@@ -27,20 +29,37 @@ export function TextField({
   keyboardType,
   autoCapitalize = 'none',
 }: Props) {
+  const [revealed, setRevealed] = useState(false);
   return (
     <View style={styles.wrapper}>
       {label ? <Text style={[typography.label, styles.label]}>{label}</Text> : null}
-      <TextInput
-        style={styles.input}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textFaint}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        autoCorrect={false}
-      />
+      <View>
+        <TextInput
+          style={[styles.input, secureTextEntry ? styles.inputWithToggle : null]}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textFaint}
+          secureTextEntry={secureTextEntry && !revealed}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          autoCorrect={false}
+        />
+        {secureTextEntry ? (
+          <Pressable
+            style={styles.toggle}
+            onPress={() => setRevealed((current) => !current)}
+            hitSlop={8}
+            accessibilityRole="button"
+          >
+            {revealed ? (
+              <IconEyeOff size={20} color={colors.textMuted} />
+            ) : (
+              <IconEye size={20} color={colors.textMuted} />
+            )}
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -61,5 +80,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     color: colors.text,
     fontSize: 16,
+  },
+  inputWithToggle: {
+    paddingRight: 48,
+  },
+  toggle: {
+    position: 'absolute',
+    right: spacing.sm,
+    top: 0,
+    bottom: 0,
+    width: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

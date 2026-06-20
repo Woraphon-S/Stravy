@@ -4,7 +4,6 @@ import { ActivityIcon, IconComment, IconHeart } from '../icons';
 import {
   formatDistance,
   formatDuration,
-  formatElevation,
   formatPace,
   formatRelativeTime,
   formatSpeed,
@@ -19,9 +18,10 @@ interface Props {
   activity: Activity;
   units: Units;
   onPress: () => void;
+  hideAuthor?: boolean;
 }
 
-export function ActivityCard({ activity, units, onPress }: Props) {
+export function ActivityCard({ activity, units, onPress, hideAuthor = false }: Props) {
   const { t } = useI18n();
   const pace = isPaceType(activity.type)
     ? formatPace(activity.avgSpeedMps, units)
@@ -33,9 +33,11 @@ export function ActivityCard({ activity, units, onPress }: Props) {
       style={({ pressed }) => [styles.card, pressed ? styles.pressed : null]}
     >
       <View style={styles.header}>
-        <Avatar name={activity.author.displayName} photoUrl={activity.author.photoUrl} size={40} />
-        <View style={styles.headerText}>
-          <Text style={typography.title}>{activity.author.displayName}</Text>
+        {hideAuthor ? null : (
+          <Avatar name={activity.author.displayName} photoUrl={activity.author.photoUrl} size={40} />
+        )}
+        <View style={[styles.headerText, hideAuthor ? styles.headerTextFlush : null]}>
+          {hideAuthor ? null : <Text style={typography.title}>{activity.author.displayName}</Text>}
           <Text style={typography.caption}>{formatRelativeTime(activity.startedAt, t)}</Text>
         </View>
         <View style={styles.typeBadge}>
@@ -52,7 +54,6 @@ export function ActivityCard({ activity, units, onPress }: Props) {
           label={isPaceType(activity.type) ? t('activity.pace') : t('activity.speed')}
           value={pace}
         />
-        <Stat label={t('activity.elev')} value={formatElevation(activity.elevationGainM, units)} />
       </View>
 
       <View style={styles.footer}>
@@ -99,6 +100,9 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
     marginLeft: spacing.md,
+  },
+  headerTextFlush: {
+    marginLeft: 0,
   },
   typeBadge: {
     width: 36,

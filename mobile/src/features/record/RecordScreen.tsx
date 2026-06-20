@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { ErrorText } from '../../components/Feedback';
+import { RoutePreview } from '../../components/RoutePreview';
 import { Screen } from '../../components/Screen';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { StatTile } from '../../components/StatTile';
@@ -96,6 +97,11 @@ export function RecordScreen({ navigation }: RecordTabProps) {
 
       <View style={styles.metrics}>
         <StatTile label={t('activity.distance')} value={formatDistance(tracker.distanceM, units)} big />
+        {!idle ? (
+          <View style={styles.route}>
+            <RoutePreview points={tracker.points} />
+          </View>
+        ) : null}
         <View style={styles.row}>
           <StatTile label={t('activity.time')} value={formatDuration(tracker.movingSeconds)} />
           <StatTile
@@ -155,6 +161,12 @@ const styles = StyleSheet.create({
   metrics: {
     flex: 1,
     justifyContent: 'center',
+  },
+  route: {
+    width: '100%',
+    flex: 1,
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
   },
   row: {
     flexDirection: 'row',

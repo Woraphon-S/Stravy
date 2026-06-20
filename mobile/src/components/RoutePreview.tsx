@@ -49,21 +49,25 @@ function project(points: LatLng[], width: number, height: number, pad: number): 
     .join(' ');
 }
 
-export function RoutePreview({ points, height = 200 }: Props) {
+export function RoutePreview({ points, height }: Props) {
   const { t } = useI18n();
-  const [width, setWidth] = useState(0);
-  const onLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width);
+  const [size, setSize] = useState({ width: 0, height: height ?? 0 });
+  const onLayout = (event: LayoutChangeEvent) => {
+    const { width, height: measured } = event.nativeEvent.layout;
+    setSize({ width, height: height ?? measured });
+  };
 
   const hasRoute = points.length >= 2;
-  const line = hasRoute && width > 0 ? project(points, width, height, 16) : '';
+  const ready = hasRoute && size.width > 0 && size.height > 0;
+  const line = ready ? project(points, size.width, size.height, 16) : '';
   const coords = line ? line.split(' ') : [];
   const start = coords[0];
   const end = coords[coords.length - 1];
 
   return (
-    <View style={[styles.container, { height }]} onLayout={onLayout}>
-      {hasRoute && width > 0 ? (
-        <Svg width={width} height={height}>
+    <View style={[styles.container, height != null ? { height } : styles.fill]} onLayout={onLayout}>
+      {ready ? (
+        <Svg width={size.width} height={size.height}>
           <Polyline
             points={line}
             fill="none"
@@ -87,6 +91,9 @@ export function RoutePreview({ points, height = 200 }: Props) {
 }
 
 const styles = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
   container: {
     width: '100%',
     backgroundColor: colors.surface,

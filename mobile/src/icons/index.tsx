@@ -233,6 +233,50 @@ export function IconDownload({ size, color = colors.text }: IconProps) {
   );
 }
 
+export function IconSettings({ size, color = colors.text }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Circle cx="12" cy="12" r="3" stroke={color} {...stroke} />
+      <Path
+        d="M12 2.5l1.6 2.2 2.6-.6.4 2.7 2.4 1.2-1 2.5 1 2.5-2.4 1.2-.4 2.7-2.6-.6L12 21.5l-1.6-2.2-2.6.6-.4-2.7-2.4-1.2 1-2.5-1-2.5 2.4-1.2.4-2.7 2.6.6z"
+        stroke={color}
+        {...stroke}
+      />
+    </Svg>
+  );
+}
+
+export function IconCamera({ size, color = colors.text }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" stroke={color} {...stroke} />
+      <Circle cx="12" cy="13" r="3.5" stroke={color} {...stroke} />
+    </Svg>
+  );
+}
+
+export function IconEye({ size, color = colors.text }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke={color} {...stroke} />
+      <Circle cx="12" cy="12" r="3" stroke={color} {...stroke} />
+    </Svg>
+  );
+}
+
+export function IconEyeOff({ size, color = colors.text }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path
+        d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+        stroke={color}
+        {...stroke}
+      />
+      <Line x1="1" y1="1" x2="23" y2="23" stroke={color} {...stroke} />
+    </Svg>
+  );
+}
+
 export type ActivityKind = 'run' | 'ride' | 'walk' | 'hike' | 'swim';
 
 export function ActivityIcon({ type, size, color }: IconProps & { type: ActivityKind }) {

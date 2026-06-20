@@ -34,6 +34,11 @@ export const usersApi = {
   me: () => request<SelfUser>('/users/me'),
   updateMe: (body: Partial<{ displayName: string; weightKg: number; heightCm: number; units: Units; defaultPrivacy: Privacy }>) =>
     request<SelfUser>('/users/me', { method: 'PATCH', body }),
+  uploadPhoto: (file: { uri: string; name: string; type: string }) => {
+    const form = new FormData();
+    form.append('file', { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+    return request<SelfUser>('/users/me/photo', { method: 'POST', body: form });
+  },
   get: (id: string) => request<PublicUser>(`/users/${id}`),
   search: (q: string) => request<PublicUser[]>(`/users/search${toQuery({ q })}`),
 };
